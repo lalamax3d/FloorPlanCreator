@@ -71,10 +71,8 @@ def precise_boxes(detect_img, output_img=None, color=[100, 100, 0]):
     @source https://stackoverflow.com/questions/50930033/drawing-lines-and-distance-to-them-on-image-opencv-python
     """
     res = []
-
-    contours, _ = cv2.findContours(
-        detect_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    
+    contours, hierarchy = cv2.findContours(detect_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE )
 
     for cnt in contours:
         epsilon = const.PRECISE_BOXES_ACCURACY * cv2.arcLength(cnt, True)
@@ -229,7 +227,7 @@ def outer_contours(detect_img, output_img=None, color=[255, 255, 255]):
     epsilon = const.PRECISE_BOXES_ACCURACY * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, epsilon, True)
     if output_img is not None:
-        output_img = cv2.drawContours(output_img, [approx], 0, color)
+        output_img = cv2.drawContours(output_img, [approx], 0, color,5)
     return approx, output_img
 
 
