@@ -150,6 +150,10 @@ def createSplineCurve(contour):
     spline.use_cyclic_u = True
 
 def createContourObject(obj,cname,contour, alignbbox=False, matchScale=False):
+    '''
+    Create a new object with a mesh that matches the given contour
+    also cname will be used to create mesh data attribute (name) mostly on vertices with value of 1
+    '''
     # Get the bounding box vertices in object space
     bbox_verts = obj.bound_box
 
@@ -174,8 +178,8 @@ def createContourObject(obj,cname,contour, alignbbox=False, matchScale=False):
     #bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
     # Create an empty object to hold the vertices
     mesh = bpy.data.meshes.new(name=cname)
-    obj = bpy.data.objects.new(name=cname, object_data=mesh)
-    bpy.context.scene.collection.objects.link(obj)
+    newobj = bpy.data.objects.new(name=cname, object_data=mesh)
+    bpy.context.scene.collection.objects.link(newobj)
 
     # Add a vertex for each point in the contour
     # for point in contour:
@@ -202,8 +206,13 @@ def createContourObject(obj,cname,contour, alignbbox=False, matchScale=False):
     # Update the mesh with the BMesh data
     bm.to_mesh(mesh)
     bm.free()
-    obj.scale = (.008, -.008, .008)
-    obj.location = (bbox_min[0], -bbox_min[1], bbox_min[2])
+    # set attribute value to 1
+    #attribute = mesh.attributes.new(name=cname, type="INT", domain="POINT")
+    #attribute_values = [i for i in range(len(mesh.vertices))]
+    #attribute.data.foreach_set('1', attribute_values)
+    newobj.scale = (.008, -.008, .008)
+    newobj.location = (bbox_min[0], -bbox_min[1], bbox_min[2])
+    return newobj
 
 def detector_AIO(obj,img_path):
 
@@ -230,10 +239,19 @@ def detector_AIO(obj,img_path):
     wall_img = fpb.detect.wall_filter(gray_image)
     walls,w_img = fpb.detect.precise_boxes(wall_img,wallImage,color=[0,0,255])
     print ("Step2: Walls \t>>\t", len(walls))
-    
-    # for i, wall in enumerate(walls):
-    #     name = "wall_{:02d}".format(i+1)
-    #     createContourObject(obj, name, wall)
+    wallObjs = []
+    for i, wall in enumerate(walls):
+        name = "wall_{:02d}".format(i+1)
+        wallobj = createContourObject(obj, name, wall)
+        wallObjs.append(wallobj)
+    # combine (join) all walls to single obj
+    bpy.ops.object.select_all(action='DESELECT')
+    for wall in wallObjs:
+        wall.select_set(True)
+    bpy.context.view_layer.objects.active = wallObjs[0]
+    bpy.ops.object.join()
+    bpy.ops.object.select_all(action='DESELECT')
+
 
     # STEP 3 ROOMS
     # wall_img = fpb.detect.wall_filter(gray_image)
@@ -243,6 +261,19 @@ def detector_AIO(obj,img_path):
     gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
     rooms, roomImage = fpb.detect.precise_boxes(gray_rooms,roomImage,color=(255,0,0))
     print ("Step3: Rooms \t>>\t", len(rooms))
+    roomObjs = []
+    for i, room in enumerate(rooms):
+        name = "room_{:02d}".format(i+1)
+        roomobj = createContourObject(obj, name, room)
+        roomObjs.append(roomobj)
+    # combine (join) all walls to single obj
+    bpy.ops.object.select_all(action='DESELECT')
+    for room in roomObjs:
+        room.select_set(True)
+    bpy.context.view_layer.objects.active = roomObjs[0]
+    bpy.ops.object.join()
+    bpy.ops.object.select_all(action='DESELECT')
+
 
     # STEP 4 (DOORS AND WINDOWS)
     
@@ -255,12 +286,14 @@ def detector_AIO(obj,img_path):
     print ("Step4: Doors and Windows \t>>\t", len(door_window_contourBoxes))
 
     # Refine Doors and Windows(separation)
-    #img0 = cv2.imread(img_path)
-    #img1 = cv2.imread(img_path,0) # read as grayscale mode
+    img0 = cv2.imread(img_path)
+    img1 = cv2.imread(img_path,0) # read as grayscale mode
     img2 = cv2.imread(door_path,0)
-    doorPatternMatchedList = fpb.find_windows_and_doors.feature_match(gray,img2)
-    classified_boxes,door_windowsImage = fpb.find_windows_and_doors.detect_windows_and_doors_boxes(img,doorPatternMatchedList)
+    doorPatternMatchedList = fpb.find_windows_and_doors.feature_match(img1,img2)
+    classified_boxes,door_windowsImage = fpb.find_windows_and_doors.detect_windows_and_doors_boxes(img0,doorPatternMatchedList)
     print ("Step5: Refined \t>>\t", len(classified_boxes))
+    for box in classified_boxes:
+        print (box["type"],box)
     
 
 class TestFpCvStepsBreakdown(bpy.types.Operator):
