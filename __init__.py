@@ -15,7 +15,7 @@ import bpy
 from bpy import context as context
 
 from . fpc import state
-from . fpc import ProcessFloorPlanImageOperator, FpcPropGrp
+from . fpc import TestFpCvStepsBreakdown, GenerateFloorPlanImageOperator, FpcPropGrp
 
 bl_info = {
     "name" : "FloorPlanCreator",
@@ -49,13 +49,16 @@ class FPC_PT_Panel(bpy.types.Panel):
         col = box_rg.column(align = True)
         col.label(text='Floor Plan Options')
         row = col.row(align = True)
-        row.operator("fpc.processfloorplanimage", text="Process Floor Plan")
+        row.operator("fpc.testfpcvstepsbreakdown", text="Test FP CV Steps")
+        row = col.row(align = True)
+        row.operator("fpc.generatefloorplanimage", text="Generate Floor Plan")
         # row.operator("ffgen.re_mirror", text="Re-Mirror ")
         
 
 
 classes = (
-        ProcessFloorPlanImageOperator,
+        TestFpCvStepsBreakdown,
+        GenerateFloorPlanImageOperator,
         FPC_PT_Panel)
 register,unregister = bpy.utils.register_classes_factory(classes)
 

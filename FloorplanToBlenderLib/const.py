@@ -48,7 +48,7 @@ WALL_HEIGHT = 1
 PIXEL_TO_3D_SCALE = 100
 
 # Paths to models
-DOOR_MODEL = "Images/Models/Doors/door.png"  # TODO: make dynamic folder solution, to add more doors!
+DOOR_MODEL = "Models/Doors/door.png"  # TODO: make dynamic folder solution, to add more doors!
 DOOR_WIDTH = 5
 
 # Data creation

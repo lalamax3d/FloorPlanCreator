@@ -1,159 +1,340 @@
-import bpy
 import os
 import sys
 import math
+import bpy
+import bmesh
+from mathutils import Vector
+import addon_utils
 
 
-import sys
-sys.path.append("..") # Adds higher directory to python modules path.
-
-# Import library
-from FloorplanToBlenderLib import *
-from FloorplanToBlenderLib.find_windows_and_doors import *
-# from FloorplanToBlenderLib import find_windows_and_doors
-#from . import FloorplanToBlenderLib as fpl
-
+sys.path.append(".") # Adds higher directory to python modules path.
 # Other necessary libraries
 import cv2 # for image gathering
 import numpy as np
 
-# for visualize
-#from PIL import Image
-#from IPython.display import display
+
+sys.path.insert(0, "..")
+from FloorplanToBlenderLib import (
+    config,
+    floorplan,
+    generate,
+    execution,
+    IO,
+    const,
+)  # floorplan to blender lib
 
 
-door_path = os.path.abspath("D:\\FloorplanToBlender3d\\Images\\Models\\Doors\\door.png")
-rd_door = cv2.imread(door_path)
-door_img = cv2.cvtColor(rd_door, cv2.COLOR_BGR2GRAY)
-window_path = os.path.abspath("D:\\FloorplanToBlender3d\\Images\\Models\\Windows\\window.png")
-rd_window = cv2.imread(window_path)
-window_img = cv2.cvtColor(rd_window, cv2.COLOR_BGR2GRAY)
+from . import FloorplanToBlenderLib as fpb
+# print (fpb)
+# print (fpb.detect)
 
 
-# Detect Contours
-def precise_boxes(detect_img, output_img=None, color=[100, 100, 0]):
-    """
-    Detect corners with boxes in image with high precision
-    @Param detect_img image to detect from @mandatory
-    @Param output_img image for output
-    @Param color to set on output
-    @Return corners(list of boxes), output image
-    @source https://stackoverflow.com/questions/50930033/drawing-lines-and-distance-to-them-on-image-opencv-python
-    """
-    res = []
-    
-    contours, hierarchy = cv2.findContours(detect_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE )
-    print ("TOTAL CONTOURS:", len(contours))
-    for cnt in contours:
-        print ("CONTOUR points before optimization: ", cnt.shape)
-        epsilon = const.PRECISE_BOXES_ACCURACY * cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, epsilon, True)
-        print ("CONTOUR points after optimization: ", approx.shape)
-        if output_img is not None:
-            output_img = cv2.drawContours(output_img, [approx], 0, color,5)
-        res.append(approx)
-
-    return res, output_img
-
-def detect_rooms(img_path):
-    img = cv2.imread(img_path)
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    wall_img = detect.wall_filter(gray_image)
-    blank_image = img.copy()
-    gray = ~wall_img
-    rooms,colored_rooms = detect.find_rooms(gray)
-    gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
-
-    boxes, blank_image = detect.precise_boxes(
-        gray_rooms,blank_image,color=(255,0,0)
-    )
-    # Save
-    directory = os.path.dirname(img_path)
-    cv2.imwrite(directory + '/step3.png', blank_image) 
-
-    blank_image = img.copy()
-    doors, colored_doors = detect.find_details(gray.copy())
-    gray_details = cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY)
-    boxes, blank_image = detect.precise_boxes(
-    gray_details, blank_image, color=(255, 0, 0)
-    )
-        # Save
-    directory = os.path.dirname(img_path)
-    cv2.imwrite(directory + '/step4.png', blank_image)
-
-    img0 = cv2.imread(img_path)
-    img1 = cv2.imread(img_path,0)
-    img2 = cv2.imread(door_path,0)
-    blank_image = detect_windows_and_doors_boxes(img0,feature_match(img1,img2))
-        # Save
-    # directory = os.path.dirname(img_path)
-    # cv2.imwrite(directory + '/step5.png', blank_image) 
-
-def detect_walls(img_path):
-    print("running function")
-    img = cv2.imread(img_path)
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    height,width,channels = img.shape
-    blank_image = img.copy()
-    # wall_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY
-    wall_img = detect.wall_filter(gray_image)
-    boxes,w_img = detect.precise_boxes(wall_img,blank_image,color=[0,0,255])
-    print ("BOXES", boxes)
-    
-
-    # Save
-    directory = os.path.dirname(img_path)
-    cv2.imwrite(directory + '/step2.png', blank_image) 
-    print("done")
-
-    
+door_path = os.path.abspath("Models\\Doors\\door.png")
+if not os.path.isfile(door_path):
+    print("File path {} does not exist. Exiting...".format(door_path))
+else:
+    print("File path {} exists.".format(door_path))
+    rd_door = cv2.imread(door_path)
+    door_img = cv2.cvtColor(rd_door, cv2.COLOR_BGR2GRAY)
+    window_path = os.path.abspath("Models\\Windows\\window.png")
+    rd_window = cv2.imread(window_path)
+    window_img = cv2.cvtColor(rd_window, cv2.COLOR_BGR2GRAY)
 
 
+
+   
+
+# Detect Contours(step 1) BOUNDARY COUNTOUR
 def detect_contour(img_path):
+    # detecting outer most contour (big map boundary)
     # Read floorplan image
     img = cv2.imread(img_path)
     height, width, channels = img.shape[:3]
+    print ("Image size: ", height, width, channels)
     blank_image = img.copy()
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    contour, c_img = detect.outer_contours(gray, blank_image, color=(255,0,0))
+    contour, c_img = fpb.detect.outer_contours(gray, blank_image, color=(255,0,0))
     # Save
     directory = os.path.dirname(img_path)
-    cv2.imwrite(directory + '/step1.png', blank_image)
+    cv2.imwrite(directory + '/step1_Countour.png', blank_image)
     # print (contour)
     # print (contour.dtype)
     # print (contour.shape)
     # print (c_img)
     # print (c_img.shape)
 
+# Detect walls(step 2)
+def detect_walls(img_path):
+    ''' Detect walls in image'''
 
-class LoadFloorPlanImageOperator(bpy.types.Operator):
-    bl_idname = "object.loadfloorplanimage"
-    bl_label = "loadFloorPlanImage"
+    print("running function")
+    img = cv2.imread(img_path)
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    height,width,channels = img.shape
+    blank_image = img.copy()
+    # wall_img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY
+    wall_img = fpb.detect.wall_filter(gray_image)
+    boxes,w_img = fpb.detect.precise_boxes(wall_img,blank_image,color=[0,0,255])
+    print ("BOXES", boxes)
+    # Save
+    directory = os.path.dirname(img_path)
+    cv2.imwrite(directory + '/step2_walls.png', blank_image) 
+    print("done")
 
-    def execute(self, context):
-        return {'FINISHED'}
+# Detect rooms(step 3)
+def detect_rooms(img_path):
+    ''' Detect rooms in image'''
+    img = cv2.imread(img_path)
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    wall_img = fpb.detect.wall_filter(gray_image)
+    blank_image = img.copy()
+    gray = ~wall_img # inverting colors
+    rooms,colored_rooms = fpb.detect.find_rooms(gray)
+    gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
 
-class ProcessFloorPlanImageOperator(bpy.types.Operator):
-    bl_idname = "fpc.processfloorplanimage"
-    bl_label = "processFloorPlanImage"
+    boxes, blank_image = fpb.detect.precise_boxes(
+        gray_rooms,blank_image,color=(255,0,0)
+    )
+    # Save
+    directory = os.path.dirname(img_path)
+    cv2.imwrite(directory + '/step3_rooms.png', blank_image)
+
+# Detect DoorWindows(step 4)
+def detect_doorAndWindows(img_path):
+    print ("FineDetails..")
+    img = cv2.imread(img_path)
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    wall_img = fpb.detect.wall_filter(gray_image)
+    blank_image = img.copy()
+    gray = ~wall_img
+    blank_image = img.copy()
+    doors, colored_doors = fpb.detect.find_details(gray.copy())
+    gray_details = cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY)
+    boxes, blank_image = fpb.detect.precise_boxes(
+    gray_details, blank_image, color=(255, 0, 0)
+    )
+    print ("Precise Boxes")
+    directory = os.path.dirname(img_path)
+    cv2.imwrite(directory + '/step4_doorWindows.png', blank_image)
+
+# FineDetails (seprating doors_n_windows) (step 5)
+def detect_doors(img_path):
+    '''
+    ORB feature extraction
+    '''
+    img0 = cv2.imread(img_path)
+    img1 = cv2.imread(img_path,0)
+    img2 = cv2.imread(door_path,0)
+    doorPatternMatchedList = fpb.find_windows_and_doors.feature_match(img1,img2)
+    print (doorPatternMatchedList)
+    blank_image = fpb.find_windows_and_doors.detect_windows_and_doors_boxes(img0,doorPatternMatchedList)
+    # Save
+    directory = os.path.dirname(img_path)
+    cv2.imwrite(directory + '/step5_doorsAligned.png', blank_image) 
+
+def createSplineCurve(contour):
+    # Create a new curve object and add it to the scene
+    curve = bpy.data.curves.new(name="Contour", type='CURVE')
+    curve.dimensions = '2D'
+    obj = bpy.data.objects.new(name="Contour", object_data=curve)
+    bpy.context.scene.collection.objects.link(obj)
+
+    # Create a new spline and add points to it
+    spline = curve.splines.new(type='POLY')
+    spline.points.add(len(contour))
+    for i, point in enumerate(contour):
+        x, y = point[0]
+        spline.points[i].co = (x, y, 0, 1)
+
+    # Set the curve to be closed
+    spline.use_cyclic_u = True
+
+def createContourObject(obj,cname,contour, alignbbox=False, matchScale=False):
+    # Get the bounding box vertices in object space
+    bbox_verts = obj.bound_box
+
+    # Convert the bounding box vertices to world space
+    bbox_verts_world = [obj.matrix_world @ Vector(v) for v in bbox_verts]
+
+    # Find the min and max coordinates of the bounding box in world space
+    bbox_min = min(bbox_verts_world, key=lambda v: v[0])[0], \
+            min(bbox_verts_world, key=lambda v: v[1])[1], \
+            min(bbox_verts_world, key=lambda v: v[2])[2]
+    bbox_max = max(bbox_verts_world, key=lambda v: v[0])[0], \
+            max(bbox_verts_world, key=lambda v: v[1])[1], \
+            max(bbox_verts_world, key=lambda v: v[2])[2]
+
+    # Print the bounding box coordinates
+    print("Bounding box min:", bbox_min)
+    print("Bounding box max:", bbox_max)
+
+    # Create Curve (polygon)
+    # draw contour in blender
+
+    #bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+    # Create an empty object to hold the vertices
+    mesh = bpy.data.meshes.new(name=cname)
+    obj = bpy.data.objects.new(name=cname, object_data=mesh)
+    bpy.context.scene.collection.objects.link(obj)
+
+    # Add a vertex for each point in the contour
+    # for point in contour:
+    #     x, y = point[0]
+    #     z = 0
+    #     bpy.ops.mesh.primitive_vert_add(location=(x, y, z))
+    # Create a BMesh and add vertices to it
+    bm = bmesh.new()
+    for point in contour:
+        x, y = point[0]
+        z = 0
+        bm.verts.new((x, y, z))
+    # Call ensure_lookup_table() to update the internal index table
+    bm.verts.ensure_lookup_table()
+
+    # Connect the vertices to create edges and a closed polygon
+    for i in range(len(contour)):
+        bm.edges.new([bm.verts[i], bm.verts[(i+1)%len(contour)]])
+
+    # Call ensure_lookup_table() again to update the internal index table
+    bm.edges.ensure_lookup_table()
+
+    # Update the mesh with the BMesh data
+    # Update the mesh with the BMesh data
+    bm.to_mesh(mesh)
+    bm.free()
+    obj.scale = (.008, -.008, .008)
+    obj.location = (bbox_min[0], -bbox_min[1], bbox_min[2])
+
+def detector_AIO(obj,img_path):
+
+    
+    
+    # Read floorplan image
+    img = cv2.imread(img_path)
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    height, width, channels = img.shape[:3]
+    #height,width,channels = img.shape
+    print ("Image size: ", height, width, channels)
+
+
+    # STEP 1 outer countour
+    contourImage = img.copy()
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    contour, c_img = fpb.detect.outer_contours(gray, contourImage, color=(255,0,0))
+    print ("Step1: Contour \t>>\t", len(contour))
+    # createContourObject(obj,"Step1_OuterContour",contour)
+    
+    # STEP 2 Walls
+    
+    wallImage = img.copy()
+    wall_img = fpb.detect.wall_filter(gray_image)
+    walls,w_img = fpb.detect.precise_boxes(wall_img,wallImage,color=[0,0,255])
+    print ("Step2: Walls \t>>\t", len(walls))
+    
+    # for i, wall in enumerate(walls):
+    #     name = "wall_{:02d}".format(i+1)
+    #     createContourObject(obj, name, wall)
+
+    # STEP 3 ROOMS
+    # wall_img = fpb.detect.wall_filter(gray_image)
+    roomImage = img.copy()
+    gray = ~wall_img # inverting colors
+    rooms,colored_rooms = fpb.detect.find_rooms(gray)
+    gray_rooms = cv2.cvtColor(colored_rooms, cv2.COLOR_BGR2GRAY)
+    rooms, roomImage = fpb.detect.precise_boxes(gray_rooms,roomImage,color=(255,0,0))
+    print ("Step3: Rooms \t>>\t", len(rooms))
+
+    # STEP 4 (DOORS AND WINDOWS)
+    
+    doon_n_windows = img.copy()
+    gray = ~wall_img
+    doon_n_windows = img.copy()
+    doors, colored_doors = fpb.detect.find_details(gray.copy())
+    gray_details = cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY)
+    door_window_contourBoxes, doon_n_windows = fpb.detect.precise_boxes(gray_details, doon_n_windows, color=(255, 0, 0))
+    print ("Step4: Doors and Windows \t>>\t", len(door_window_contourBoxes))
+
+    # Refine Doors and Windows(separation)
+    #img0 = cv2.imread(img_path)
+    #img1 = cv2.imread(img_path,0) # read as grayscale mode
+    img2 = cv2.imread(door_path,0)
+    doorPatternMatchedList = fpb.find_windows_and_doors.feature_match(gray,img2)
+    classified_boxes,door_windowsImage = fpb.find_windows_and_doors.detect_windows_and_doors_boxes(img,doorPatternMatchedList)
+    print ("Step5: Refined \t>>\t", len(classified_boxes))
+    
+
+class TestFpCvStepsBreakdown(bpy.types.Operator):
+    bl_idname = "fpc.testfpcvstepsbreakdown"
+    bl_label = "testFpCvStepsBreakdown"
 
     def execute(self, context):
         o = context.active_object
         if o:
-            if o.empty_display_type == 'IMAGE':
+            # get obj materil and texture
+            m = o.active_material
+            n = m.node_tree.nodes
+            tex = n.get('Image Texture')
+            img = tex.image
+            relpath = img.filepath
+            abs_path = bpy.path.abspath(img.filepath)
+            # check file exists
+            if not os.path.isfile(abs_path):
+                print("File path {} does not exist. Exiting...".format(abs_path))
+            else:
+                print ("File path {} exists.".format(abs_path))
                 print("Image")
-                print(o.data.name)
-                print(o.data.filepath)
-                #print (bpy.path.abspath (o.data.filepath, library=tex.library))
-                filepath = bpy.data.filepath
-                directory = os.path.dirname(filepath)
-                imgpath = bpy.path.abspath (o.data.filepath, start=None, library=None)
-                print (imgpath)
-                detect_contour(imgpath)
-                detect_walls(imgpath)
-                detect_rooms(imgpath)
+                directory = os.path.dirname(abs_path)
+                # imgpath = bpy.path.abspath (o.data.filepath, start=None, library=None)
+                print (abs_path)
+                print ("Detecting Outer Contours")
+                detect_contour(abs_path)
+                print ("Detecting Walls")
+                detect_walls(abs_path)
+                print ("Detecting Rooms")
+                detect_rooms(abs_path)
+                print ("Detecting Doors and Windows")
+                detect_doorAndWindows(abs_path)
+                print ("Detecting Doors Improved")
+                detect_doors(abs_path)
+                # DETECTION LOGIC ENDS HERE
+                ## NEXT GENERATE STORAGE DATA via generate module in fpb
+
                 
 
+
+        return {'FINISHED'}
+# from file.file_handler import FileHandler
+# fh = FileHandler()
+
+class GenerateFloorPlanImageOperator(bpy.types.Operator):
+    bl_idname = "fpc.generatefloorplanimage"
+    bl_label = "generateFloorPlanImage"
+
+    
+
+
+    def execute(self, context):
+        o = context.active_object
+        if o:
+            m = o.active_material
+            n = m.node_tree.nodes
+            tex = n.get('Image Texture')
+            img = tex.image
+            relpath = img.filepath
+            abs_path = bpy.path.abspath(img.filepath)
+            # check file exists
+            if not os.path.isfile(abs_path):
+                print ("File path {} does not exist. Exiting...".format(abs_path))
+            else:
+                # proceeding with file
+                # fpb.generate.generate_all_files(abs_path, True)
+                # fpb.execution.simple_single(abs_path)
+                config_path = None
+                f = floorplan.new_floorplan(config_path)
+                f.image_path = abs_path
+                #data_paths = list()
+                #data_paths = [execution.simple_single(f, False)]
+                detector_AIO(o,abs_path)
 
         return {'FINISHED'}
 
@@ -219,10 +400,10 @@ bpy.utils.register_class(FpcPropGrp)
 
 
 def register():
-    bpy.utils.register_class(ProcessFloorPlanImageOperator)
+    bpy.utils.register_class(TestFpCvStepsBreakdown,GenerateFloorPlanImageOperator)
 
 def unregister():
-    bpy.utils.unregister_class(ProcessFloorPlanImageOperator)
+    bpy.utils.unregister_class(TestFpCvStepsBreakdown,GenerateFloorPlanImageOperator)
 
 if __name__ == "__main__":
     register()

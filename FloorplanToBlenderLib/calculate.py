@@ -17,24 +17,58 @@ def average(lst):
     return sum(lst) / len(lst)
 
 
-def points_inside_contour(points, contour):
-    """
-    Return false if all of the points are outside of the contour
-    """
-    for x, y in points:
-        if cv2.pointPolygonTest(contour, (x, y), False) == 1.0:
-            return True
-    return False
+# def points_inside_contour(points, contour):
+#     """
+#     Return false if all of the points are outside of the contour
+#     """
+
+#     print ("Contour", contour.shape)
+#     print ("Points Count", len(points))
+#     # contour = contour.reshape((-1, 1, 2))
 
 
+#     for x, y in points:
+#         print ("Point", x, y)
+#         if cv2.pointPolygonTest(contour, (x, y), False) == 1.0:
+#             print ("Point", x, y, "is inside contour")
+#             return True
+#     return False
+
+def point_in_polygon(point, polygon):
+    """
+    Returns True if the point is inside the polygon, False otherwise.
+    """
+    x, y = point
+    n = len(polygon)
+    inside = False
+
+    p1x, p1y = polygon[0]
+    for i in range(n+1):
+        p2x, p2y = polygon[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xints = (y-p1y)*(p2x-p1x)/(p2y-p1y)+p1x
+                    if p1x == p2x or x <= xints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+
+    return inside
 def remove_walls_not_in_contour(walls, contour):
     """
     Returns a list of boxes where walls outside of contour is removed.
     """
     res = []
+    print ("Iterating Walls Count", len(walls))
     for wall in walls:
+        print ("Wall", wall)
+        print ("Contour", contour)
         for point in wall:
-            if points_inside_contour(point, contour):
+            print ("Point", point)
+            point = point.tolist()[0]
+            print ("Countour", contour)
+            if point_in_polygon(point, contour):
                 res.append(wall)
                 break
     return res
@@ -46,9 +80,12 @@ def wall_width_average(img):
     This is used to scale the size of the image for better accuracy.
     Returns the average as float value. See CALIBRATION in config file.
     """
+    print ("CALIBRATION: Calculating wall width average...")
+    print ("Type", type(img))
+    print ("Img", img.shape)
     # grayscale image
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
+    print ("Gray", gray.shape)
     # Resulting image
     height, width, channels = img.shape
     blank_image = np.zeros(

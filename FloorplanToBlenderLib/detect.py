@@ -78,7 +78,7 @@ def precise_boxes(detect_img, output_img=None, color=[100, 100, 0]):
         epsilon = const.PRECISE_BOXES_ACCURACY * cv2.arcLength(cnt, True)
         approx = cv2.approxPolyDP(cnt, epsilon, True)
         if output_img is not None:
-            output_img = cv2.drawContours(output_img, [approx], 0, color)
+            output_img = cv2.drawContours(output_img, [approx], 0, color,3)
         res.append(approx)
 
     return res, output_img

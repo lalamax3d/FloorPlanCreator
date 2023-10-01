@@ -44,7 +44,7 @@ def detect_windows_and_doors_boxes(img, door_list):
     # cv2.imshow("input", img)
     # cv2.imshow("doors and windows", gray_rooms)
     # cv2.imshow("colored", colored_doors)
-    cv2.waitKey(0)
+    # cv2.waitKey(0)
 
     classified_boxes = []
     # classify boxes
@@ -99,7 +99,8 @@ def detect_windows_and_doors_boxes(img, door_list):
             img = cv2.line(img, start, end, (0, 255, 0), 5)
 
     # cv2.imshow("Final result", img)
-    cv2.waitKey(0)
+    # cv2.waitKey(0)
+    return classified_boxes,img
 
 
 def points_are_inside_or_close_to_box(door, box):

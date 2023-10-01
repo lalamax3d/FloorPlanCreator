@@ -87,7 +87,7 @@ def doors(img, doors):
     return img
 
 
-def colormap(img, mapping=cv2.COLORMAP_HSV):
+def colormap(img): #, mapping=cv2.COLORMAP_HSV):
     """
     ColorMap grayscale image
     Return colormapped image
@@ -97,7 +97,9 @@ def colormap(img, mapping=cv2.COLORMAP_HSV):
     AUTUMN BONE JET WINTER RAINBOW OCEAN
     SUMMER SPRING COOL HSV PINK HOT
     """
-    return cv2.applyColorMap(img, mapping)
+    #return cv2.applyColorMap(img, mapping)
+    return img
+
 
 
 def histogram(img, title="Histogram", wait=0):

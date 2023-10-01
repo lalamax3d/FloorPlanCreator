@@ -33,7 +33,8 @@ def create_image_scale_calibration(floorplan, got_settings=False):
     """
     Create and save image size calibrations
     """
-
+    print ("CALIBRATION: Creating image scale calibration...")
+    print ("Calibration image path: ", floorplan.calibration_image_path)
     calibration_img = cv2.imread(floorplan.calibration_image_path)
     return calculate.wall_width_average(calibration_img)
 

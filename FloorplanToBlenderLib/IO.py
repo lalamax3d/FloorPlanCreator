@@ -110,6 +110,18 @@ def read_image(path, floorplan=None):
 
     return img, cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), scale_factor
 
+def read_image_noscale(path, floorplan=None):
+    """
+    Read image, and return with grayscale
+    """
+    # Read floorplan image
+    img = cv2.imread(path)
+    if img is None:
+        print(f"ERROR: Image {path} could not be read by OpenCV library.")
+        raise IOError
+
+    scale_factor = 1
+    return img, cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), scale_factor
 
 def readlines_file(path):
     res = []

@@ -58,14 +58,21 @@ def generate_all_files(
 
     # Get path to save data
     path = IO.create_new_floorplan_path(const.BASE_PATH)
+    print ("Data Path To Save: ", path)
 
     origin_path, shape = IO.find_reuseable_data(floorplan.image_path, const.BASE_PATH)
+    print ("Origin Path: ", origin_path)
+    print ("Shape: ", shape)
 
     if origin_path is None:
         origin_path = path
-
-        _, gray, scale_factor = IO.read_image(floorplan.image_path, floorplan)
-
+        print ("Floorplan ImagePath: ", floorplan.image_path)
+        # _, gray, scale_factor = IO.read_image(floorplan.image_path, floorplan)
+        _, gray, scale_factor = IO.read_image_noscale(floorplan.image_path, floorplan)
+        print ("Scale Factor: ", scale_factor)
+        print ("Gray: ", gray)
+        print ("_", _)
+        print ("Floorplan Floors", floorplan.floors)
         if floorplan.floors:
             shape = Floor(gray, path, scale, info).shape
 
