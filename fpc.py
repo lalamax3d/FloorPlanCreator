@@ -264,6 +264,7 @@ def detector_AIO(obj,img_path):
     roomObjs = []
     for i, room in enumerate(rooms):
         name = "room_{:02d}".format(i+1)
+        print ("ROOM CONTOUR SHAPE:",room.shape)
         roomobj = createContourObject(obj, name, room)
         roomObjs.append(roomobj)
     # combine (join) all walls to single obj
@@ -284,6 +285,7 @@ def detector_AIO(obj,img_path):
     gray_details = cv2.cvtColor(colored_doors, cv2.COLOR_BGR2GRAY)
     door_window_contourBoxes, doon_n_windows = fpb.detect.precise_boxes(gray_details, doon_n_windows, color=(255, 0, 0))
     print ("Step4: Doors and Windows \t>>\t", len(door_window_contourBoxes))
+    # print (door_window_contourBoxes[0])
 
     # Refine Doors and Windows(separation)
     img0 = cv2.imread(img_path)
@@ -292,8 +294,43 @@ def detector_AIO(obj,img_path):
     doorPatternMatchedList = fpb.find_windows_and_doors.feature_match(img1,img2)
     classified_boxes,door_windowsImage = fpb.find_windows_and_doors.detect_windows_and_doors_boxes(img0,doorPatternMatchedList)
     print ("Step5: Refined \t>>\t", len(classified_boxes))
-    for box in classified_boxes:
-        print (box["type"],box)
+    # print (classified_boxes[0])
+
+    # Creating stuff
+    windows  = []
+    doors = []
+    for i, box in enumerate(classified_boxes):
+        print (classified_boxes[i]['type'], list(classified_boxes[i]['box']))
+        coords = classified_boxes[i]['box']
+        # Convert the coordinates to a contour object
+        points = np.array(coords, dtype=np.int32)
+        hull = cv2.convexHull(points)
+        contour = hull.reshape((-1, 1, 2))
+        # name = "door_{:02d}".format(i+1)
+        # door = createContourObject(obj, name, contour)
+        if classified_boxes[i]['type'] == "door":
+            name = "door_{:02d}".format(i+1)
+            door = createContourObject(obj, name, contour)
+            doors.append(door)
+        elif classified_boxes[i]['type'] == "window":
+            name = "window_{:02d}".format(i+1)
+            window = createContourObject(obj, name, contour)
+            windows.append(window)
+    # combine (join) all doors to single obj
+    bpy.ops.object.select_all(action='DESELECT')
+    for door in doors:
+        door.select_set(True)
+    bpy.context.view_layer.objects.active = doors[0]
+    bpy.ops.object.join()
+    bpy.ops.object.select_all(action='DESELECT')
+    # combine (join) all windows to single obj
+    for window in windows:
+        window.select_set(True)
+    bpy.context.view_layer.objects.active = windows[0]
+    bpy.ops.object.join()
+    bpy.ops.object.select_all(action='DESELECT')
+
+
     
 
 class TestFpCvStepsBreakdown(bpy.types.Operator):
